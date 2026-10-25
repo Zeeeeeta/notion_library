@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "weread-notion-sync"
+version = "0.1.0"
+description = "Sync finished WeRead books into an existing Notion reading database"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "httpx>=0.27",
+  "python-dotenv>=1.0",
+]
+
+[project.scripts]
+weread-sync = "sync:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+py-modules = ["sync", "config", "normalize"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["weread*", "notion*"]
