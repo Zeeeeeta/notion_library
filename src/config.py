@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 # Project root (parent of src/)
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_DATABASE_ID = "4a61a181aa6541da89b7ad9ce6316f33"
+DEFAULT_DATABASE_ID = ""
 SKILL_VERSION = "1.0.5"
 WEREAD_GATEWAY = "https://i.weread.qq.com/api/agent/gateway"
 NOTION_VERSION = "2022-06-28"
@@ -43,6 +43,7 @@ def load_settings(env_file: Path | None = None) -> Settings:
         for name, value in (
             ("WEREAD_API_KEY", weread),
             ("NOTION_TOKEN", notion),
+            ("NOTION_DATABASE_ID", database),
         )
         if not value
     ]
