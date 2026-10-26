@@ -9,6 +9,7 @@ import unicodedata
 _SUFFIX_RE = re.compile(
     r"(（[^）]*）|\([^)]*\)|【[^】]*】|\[[^\]]*\]|全集|全本|完结|修订版|典藏版|精装版)+$"
 )
+_TRAILING_PAREN_RE = re.compile(r"\s*[（(][^）)]*[）)]\s*$")
 _PUNCT_RE = re.compile(r"[\s\W_]+", re.UNICODE)
 
 
@@ -25,10 +26,22 @@ def _to_halfwidth(text: str) -> str:
     return "".join(chars)
 
 
+def display_title(title: str) -> str:
+    """Page title: drop trailing parenthetical notes such as （微信读书特别版）."""
+    if not title:
+        return ""
+    text = title.strip()
+    previous = None
+    while previous != text:
+        previous = text
+        text = _TRAILING_PAREN_RE.sub("", text).strip()
+    return text
+
+
 def normalize_title(title: str) -> str:
     if not title:
         return ""
-    text = unicodedata.normalize("NFKC", title.strip())
+    text = display_title(title)
     text = _to_halfwidth(text).lower()
     # Strip repeated trailing noise
     prev = None

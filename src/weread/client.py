@@ -40,10 +40,25 @@ class ReviewNote:
     review_type: int = 0
 
 
+# type 4 is a starred book review; type 6 is a whole-book review.
+BOOK_REVIEW_TYPES = {4, 6}
+
+
 @dataclass
 class BookmarkBundle:
     highlights: list[Highlight] = field(default_factory=list)
     reviews: list[ReviewNote] = field(default_factory=list)
+
+    def book_review_text(self) -> str:
+        parts = [
+            review.content.strip()
+            for review in self.reviews
+            if review.review_type in BOOK_REVIEW_TYPES and review.content.strip()
+        ]
+        return "\n\n".join(parts)
+
+    def margin_notes(self) -> list[ReviewNote]:
+        return [review for review in self.reviews if review.review_type not in BOOK_REVIEW_TYPES]
 
 
 class WeReadError(RuntimeError):

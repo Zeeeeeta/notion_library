@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from categories import tag_for_category
+from normalize import display_title
 from notion.client import SchemaInfo
 from weread.client import BookmarkBundle, WeReadBook
 
@@ -61,14 +63,22 @@ def _divider() -> dict[str, Any]:
     return {"object": "block", "type": "divider", "divider": {}}
 
 
+def page_title(title: str, review_text: str) -> str:
+    """Use the cleaned title, or append (TO-DO) when WeRead has no book review."""
+    cleaned = display_title(title)
+    if review_text.strip() or cleaned.endswith("(TO-DO)"):
+        return cleaned
+    return f"{cleaned}(TO-DO)"
+
+
 class PageBuilder:
     def __init__(self, schema: SchemaInfo) -> None:
         self.schema = schema
 
-    def build_properties(self, book: WeReadBook) -> dict[str, Any]:
+    def build_properties(self, book: WeReadBook, notes: BookmarkBundle) -> dict[str, Any]:
         props: dict[str, Any] = {
             self.schema.title_prop.name: {
-                "title": _rich_text(book.title),
+                "title": _rich_text(page_title(book.title, notes.book_review_text())),
             }
         }
 
@@ -77,10 +87,12 @@ class PageBuilder:
                 self.schema.author_prop.type, book.author
             )
 
-        if self.schema.category_prop and book.category:
-            props[self.schema.category_prop.name] = self._set_category(
-                self.schema.category_prop.type, book.category
-            )
+        if self.schema.category_prop:
+            tag = tag_for_category(book.category)
+            if tag:
+                props[self.schema.category_prop.name] = self._set_by_type(
+                    self.schema.category_prop.type, tag
+                )
 
         if self.schema.cover_prop and book.cover:
             props[self.schema.cover_prop.name] = self._set_cover(
@@ -95,7 +107,11 @@ class PageBuilder:
         return props
 
     def build_children(self, notes: BookmarkBundle) -> list[dict[str, Any]]:
-        children: list[dict[str, Any]] = [self._review_callout(), _divider(), _heading_2("划线")]
+        children: list[dict[str, Any]] = [
+            self._review_callout(notes.book_review_text()),
+            _divider(),
+            _heading_2("划线"),
+        ]
 
         if not notes.highlights:
             children.append(_paragraph("（暂无划线）"))
@@ -108,10 +124,11 @@ class PageBuilder:
                     children.append(_heading_3(chapter))
                 children.append(_quote(h.mark_text))
 
-        if notes.reviews:
+        margin_notes = notes.margin_notes()
+        if margin_notes:
             children.append(_divider())
             children.append(_heading_2("想法"))
-            for r in notes.reviews:
+            for r in margin_notes:
                 if r.abstract:
                     children.append(_quote(r.abstract))
                 label = r.chapter_title
@@ -120,20 +137,19 @@ class PageBuilder:
 
         return children
 
-    def _review_callout(self) -> dict[str, Any]:
+    def _review_callout(self, review_text: str = "") -> dict[str, Any]:
         sample = self.schema.sample_callout or {}
         icon = sample.get("icon") or {"type": "emoji", "emoji": "✍️"}
         color = sample.get("color") or "gray_background"
 
-        # Prefer a short prompt; leave room for the user's journal
-        prompt = "读后感"
-        sample_texts = sample.get("rich_text") or []
-        if sample_texts:
-            plain = "".join(t.get("plain_text") or "" for t in sample_texts).strip()
-            # If sample looks like a label/prompt (short), reuse the label wording
-            if plain and len(plain) <= 40:
-                # Keep label-like text; strip long journal body from samples
-                prompt = plain.split("\n")[0].strip() or prompt
+        prompt = review_text.strip()
+        if not prompt:
+            prompt = "读后感"
+            sample_texts = sample.get("rich_text") or []
+            if sample_texts:
+                plain = "".join(t.get("plain_text") or "" for t in sample_texts).strip()
+                if plain and len(plain) <= 40:
+                    prompt = plain.split("\n")[0].strip() or prompt
 
         return {
             "object": "block",
@@ -157,17 +173,6 @@ class PageBuilder:
         if prop_type == "multi_select":
             return {"multi_select": [{"name": value[:100]}]}
         return {"rich_text": _rich_text(value)}
-
-    def _set_category(self, prop_type: str, category: str) -> dict[str, Any]:
-        # WeRead categories sometimes look like "计算机-编程" — take leaf or full
-        parts = [p.strip() for p in category.replace("/", "-").split("-") if p.strip()]
-        if prop_type == "multi_select":
-            names = parts[-2:] if len(parts) > 2 else parts
-            return {"multi_select": [{"name": n[:100]} for n in names]}
-        if prop_type == "select":
-            name = parts[-1] if parts else category
-            return {"select": {"name": name[:100]}}
-        return self._set_by_type(prop_type, category)
 
     def _set_cover(self, prop_type: str, url: str) -> dict[str, Any]:
         if prop_type == "url":

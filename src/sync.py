@@ -7,7 +7,7 @@ import sys
 from dataclasses import dataclass
 
 from config import load_settings
-from normalize import titles_match
+from normalize import display_title, titles_match
 from notion.client import NotionClient, NotionBookRow, SchemaInfo
 from notion.page_builder import PageBuilder
 from weread.client import WeReadBook, WeReadClient
@@ -80,7 +80,7 @@ def cmd_check(book: str | None = None) -> int:
         for i, item in enumerate(missing, 1):
             b = item.book
             cat = f"  [{b.category}]" if b.category else ""
-            print(f"  {i}. {b.title} — {b.author}{cat}")
+            print(f"  {i}. {display_title(b.title)} — {b.author}{cat}")
             print(f"     bookId={b.book_id}")
         print("\nRun: weread-sync apply")
         return 0
@@ -98,7 +98,7 @@ def cmd_apply(book: str | None = None, yes: bool = False) -> int:
 
         print(f"Will create {len(missing)} page(s):")
         for item in missing:
-            print(f"  - {item.book.title}")
+            print(f"  - {display_title(item.book.title)}")
         if not yes:
             answer = input("Continue? [y/N] ").strip().lower()
             if answer not in ("y", "yes"):
@@ -109,9 +109,9 @@ def cmd_apply(book: str | None = None, yes: bool = False) -> int:
         created = 0
         for item in missing:
             book_meta = weread.enrich_book(item.book)
-            print(f"Creating: {book_meta.title} ...", flush=True)
+            print(f"Creating: {display_title(book_meta.title)} ...", flush=True)
             notes = weread.get_notes(book_meta.book_id)
-            properties = builder.build_properties(book_meta)
+            properties = builder.build_properties(book_meta, notes)
             children = builder.build_children(notes)
             page = notion.create_page(
                 properties=properties,
@@ -126,10 +126,6 @@ def cmd_apply(book: str | None = None, yes: bool = False) -> int:
             created += 1
 
         print(f"\nCreated {created} page(s).")
-        print(
-            "Reminder: Notion API cannot add pages to the left Favorites sidebar — "
-            "drag each new page into its category manually if you still want that."
-        )
         return 0
 
 
@@ -151,6 +147,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip confirmation prompt (for agent / CI use)",
     )
+
     return parser
 
 

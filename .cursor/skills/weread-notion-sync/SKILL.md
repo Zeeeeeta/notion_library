@@ -38,7 +38,7 @@ weread-sync apply -y
 # or: PYTHONPATH=src python -m sync apply -y
 ```
 
-6. Report created page URLs and remind them: Notion API cannot add Favorites to the left sidebar — they may still drag new pages into category Favorites manually.
+6. Report created page URLs. Do not create category index pages inside the book database. Notion cannot pin pages to the left Favorites sidebar.
 
 ## Rules
 
@@ -50,5 +50,6 @@ weread-sync apply -y
 ## Page shape (already implemented by the CLI)
 
 - Category/tag property filled from WeRead when the DB has a matching property
-- Top callout for 读后感 / journal (empty for the user to fill)
-- 划线 grouped by chapter; 想法 section when present
+- If WeRead has a written book review (starred 点评), put that text in the top 读后感 callout
+- If there is no book review, append `(TO-DO)` to the page title
+- 划线 grouped by chapter; highlight 想法 stay in their own section, separate from the book review
